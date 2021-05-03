@@ -5,7 +5,7 @@ In order for these results to be reproducible, you need to run
 2. Student Clean. rmd 
 3. Full Merge. rmd 
 4. Imputation.rmd
-5. GLM analysis .rmd
+5. OLR analysis .rmd
 
 
 
