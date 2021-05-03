@@ -1,6 +1,7 @@
 # Nutrition Intervention Project
 
-In order for these results to be reproducible, you need to run 
+In order for these results to be reproducible, you need to download the .sav files and run the rmds in this order:
+
 1. Teacher Clean .rmd
 2. Student Clean. rmd 
 3. Full Merge. rmd 
