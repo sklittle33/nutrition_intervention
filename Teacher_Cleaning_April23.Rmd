@@ -1,0 +1,343 @@
+---
+title: "Teacher_Cleaning"
+author: "Lauren A. Kohls and Sarah Little"
+date: "4/26/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE,warning=FALSE, message=FALSE, error=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# Load Libraries
+library(foreign)
+library(tidyverse)
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+```
+
+##Section1: Initial Cleaning
+
+
+###Step 1: read in teacher spss file
+
+```{r error=FALSE, message=FALSE, include=FALSE}
+
+#read in Teacher data SPSS file 
+teacher_data <- data.frame(read.spss('Teacher Data_March_2020_Adrian .sav'))
+teacher_data2 <- teacher_data #create duplicate dataset
+#rm(teacher_data)
+
+
+```
+
+### Step 2: Remove NAs 
+We can see that there are a large amount of schools missing information. Out of the 206 observations, 132 school names are missing. Hopefully when we merge the teacher data with the student data, the missing school names should be accounted for. 
+
+We only see 3 rows with missing data for all observations at the same time, so we look to remove those rows. After removing the 3 entrees, we see the dataset decreased from 206 observations to 203 observations, the exact result we wanted.
+
+```{r include=FALSE}
+#search for NAs in the code, school type and Y1_School variables because we want to eventually merge this data set with the student data 
+data.frame(Num_NA = c(teacher_data2 %>% filter(is.na(Code) | Code == "NA") %>% nrow(),
+                      teacher_data2 %>% filter(is.na(School_Type) | School_Type == "NA") %>% nrow(),teacher_data2 %>% filter(is.na(Y1_School) | Y1_School == "NA") %>% nrow()))
+
+```
+```{r include=FALSE}
+#remove teacher_data
+rm(teacher_data)
+```
+
+```{r include=FALSE}
+
+#remove NAs from the duplicate dataset teacher_data2
+teacher_clean <- teacher_data2 %>% 
+  filter(!is.na(Code) & Code != "" &
+                                !is.na(School_Type) & School_Type != "")
+teacher_clean %>% 
+  nrow() # Count the remaining entries in the data set
+
+```
+
+### Step 3: Remove unused Variables: 
+```{r include=FALSE}
+#now look to remove unused variables (this is very tedious, might be better in the future to just select the variables we definitly want to ise )
+
+#also remove variables that are duplicates (ie there is a column that combines feet and inches, so repetative to have both)
+
+#also remove columns that have no entries (ie PostPD_8Other)
+
+
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("y4")) #there is no year 4 data currently, but in the future this line of code will need to be removed
+
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("Y1_PostRace_2"))
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("Y1_PostRace_3"))
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("Y1_PostPD_8Other"))
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("y2_PostRace_2"))
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("y2_PostRace_3"))
+teacher_clean <- teacher_clean %>% dplyr::select(-contains("y2_PostPD_8Other"))
+
+#we now have only observations for years 1, 2, and 3 and 503 variables, down from the 626 original variables
+rm(teacher_data2)
+```
+
+
+
+##Section 2: Drop Columns
+
+```{r include=FALSE}
+drops <- c("Y1_PreRace_Other","Y1_PreRace_2", "Y1_PreRace_3", "Y1_PreHispanic","Y1_PreHealthNumShift","Y1_PrePhyHealth","Y1_PreStressInv", "Y1_PreStressInvNumShift", "Y1_PrePhyActive", "Y1_PreSit", "Y1_PreComputer", "Y1_PreVig_Intensity", "Y1_PreMod_Intensity", "Y1_PreFitBit", "Y1_PreSoda", "Y1_PreFruit", "Y1_PreVegatables", "Y1_PreWater", "Y1_PreBreakfast", "Y1_PreDeliver_NutEd", "Y1_PreOpen_NutEd", "Y1_PreOther_NutEd","Y1_PreOther_NutEd2", "Y1_PreStudentHealthNumShift","Y1_PreTeacherRespNumShift","Y1_PreIntegrateNumShift", "Y1_PreParticipateNumeShift", "Y1_PreImpactNumShift", "Y1_PreAchievementNumShift", "Y1_PrePromoteNumShift", "Y1_PreEngageNumShift", "Y1_PreValueNumShift", "Y1_PreMotivateNumShift", "Y1_PreAssistNumShift", "Y1_PreImproveNumShift", "Y1_PreThinkNumShift", "Y1_PrePD_1Physical", "Y1_PrePD_2Stress", "Y1_PrePD_3Flu", "Y1_PrePD_4Nutrition", "Y1_PrePD_5Meditatio", "Y1_PrePD_6Smoking", "Y1_PrePD_7Ergo", "Y1_PrePD_8Other", "Y1_PrePD_Other", "Y1_PostRace_Other", "Y1_PostHealthNumShift", "Y1_PostPhyHealth", "Y1_PostMentalHealth", "Y1_PostStressInvNumShift", "Y1_PostSmoke", "Y1_PostTobProduct", "Y1_PostDiabetes", "Y1_PostHypertention", "Y1_PostAsthma", "Y1_PostPhyActive", "Y1_PostSit", "Y1_PostComputer","Y1_PostVig_Intensity", "Y1_PostMod_Intensity", "Y1_PostFitBit", "Y1_PostSoda", "Y1_PostFruit", "Y1_PostVegatables", "Y1_PostWater", "Y1_PostBreakfast", "Y1_PostDeliver_NutEd", "Y1_PostOpen_NutEd", "Y1_PostOther_NutEd","Y1_PostOther_NutEd2","Y1_PostStudentHealthNumShift","Y1_PostTeacherRespNumShift","Y1_PostIntegrateNumShift", "Y1_PostParticipateNumeShift", "Y1_PostImpactNumShift", "Y1_PostAchievementNumShift", "Y1_PostPromoteNumShift", "Y1_PostEngageNumShift", "Y1_PostValueNumShift","Y1_PostMotivateNumShift", "Y1_PostAssistNumShift", "Y1_PostImproveNumShift", "Y1_PostThinkNumShift","Y1_PostPD_1Physical", "Y1_PostPD_2Stress", "Y1_PostPD_3Flu", "Y1_PostPD_4Nutrition", "Y1_PostPD_5Meditatio", "Y1_PostPD_6Smoking", "Y1_PostPD_7Ergo", "Y1_PostPD_8Other", "Y1_PostPD_Other", "Y1_Program_NotChange", "Y1_Program_Change", "y2_prerace_other", "y2_prerace_2", "y2_prerace_3", "y2_prehispanic", "y2_PreHealthNumShift", "y2_prephyhealth", "y2_prementhealth", "y2_prestress", "y2_prestressinv", "y2_PreStressInvNumShift", "y2_prejobstress", "y2_presmoke", "y2_pretobproduct", "y2_presleep", "y2_prediabetes", "y2_prehypertension", "y2_preasthma", "y2_prephyactive", "y2_presit", "y2_precomputer", "y2_previgintensity", "y2_premod_intensity", "y2_prefitbit", "y2_presoda", "y2_prefruit", "y2_prevegtables", "y2_prewater", "y2_prebreakfast", "y2_predeliver_nuted", "y2_preopen_nuted", "y2_preother_nuted", "y2_preother_nuted2", "y2_prehealthed", "y2_prestudenthealth", "y2_preteacherresp", "y2_preintegrate", "y2_preparticipate", "y2_preimpact", "y2_preachievement", "y2_prepromote", "y2_preengage", "y2_prevalue", "y2_premotivate", "y2_preassist", "y2_preimprove", "y2_prethink", "y2_PreHealthEdNumShift", "y2_PreStudentHealthNumShift", "y2_PreTeacherRespNumShift", "y2_PreIntegrateNumShift", "y2_PreParticipateNumShift", "y2_PreImpactNumShift", "y2_PreAchievementNumShift", "y2_PrePromoteNumShift", "y2_PreEngageNumShift", "y2_PreValueNumShift", "y2_PreMotivateNumShift", "y2_PreAssistNumShift", "y2-PreImproveNumShift", "y2_PreThinkNumShift", "y2_PreWtPersonalHealthSubScore", "y2_PostWtPersonalHealthSubScore", "y2_PreWtPhysActivitySubscore", "y2_PostWtPhysActivitySubscore", "y2_PreWtNutritionSubscore", "y2_PostWtNutritionSubscore", "y2_prepd_2stress", "y2_prepd_3flu", "y2_prepd_4nutrition", "y2_prepd_5meditatio", "y2_prepd_6smoking", "y2_prepd_7ergo", "y2_prepd_8other", "y2_prepd_other", "y2_postage", "y2_postrace", "y2_postrace_other","y2_posthispanic", "y2_postgender", "y2_posthispanic", "y2_postgender", "y2_posthealth", "y2_posthealthinv", "y2_PostHealthNumShift","y2_postphyhealth", "y2_postmentalhealth", "y2_poststress", "y2_poststressinv", "y2_PostStressInvNumShift", "y2_postjobstress", "y2_postsmoke", "y2_postphyactive", "y2_postsit", "y2_postcomputer", "y2_postsoda", "y2_postfruit")
+```
+
+```{r}
+drops2 <- c("y2_postwater","y2_postbreakfast","y2_postvegetables", "y2_postdeliver_nuted", "y2_postopen_nuted","y2_postother_nuted", "y2_postother_nuted2",  "y2_posthealthed", "y2_poststudenthealth", "y2_postteacherresp", "y2_postintegrate", "y2_postparticipate", "y2_postimpact", "y2_postachievement",  "y2_postpromote", "y2_postengage", "y2_postvalue", "y2_postmotivate", "y2_postassist",   "y2_postimprove", "y2_postthink", "y2_PostHealthEdNumShift", "y2_PostStudentHealthNumShift", "y2_PostTeacherRespNumShift", "y2_PostIntegrateNumShift", "y2_PostParticipateNumShift", "y2_PostImpactNumShift", "y2_PostAchievementNumShift", "y2_PostPromoteNumShift", "y2_PostEngageNumShift", "y2_PostValueNumShift",  "y2_PostMotivateNUmShift", "y2_PostAssistNumShift", "y2_PostImproveNumShift", "y2_PostThinkNumShift", "y2_PreWtHealthEdBelSelfEffSubscore", "y2_PostWtHealthEdBelSelfEffSubscore", "y2_postpd_1physical", "y2_postpd_2stress", "y2_postpd_3flu", "y2_postpd_4nutrition", "y2_postd_5meditatio", "y2_postpd_6smoking", "y2_postpd_7ergo", "y2_postpd_other", "y2_postopen_nuted2", "y2_posthealthed", "y2_poststudenthealth", "y2_postteacherresp", "y2_postintegrate", "y2_postparticipate", "y2_postimpact", "y2_postachievement", "y2_postpromote", "y2_postengage", "y2_postvalue", "y2_postmotivate", "y2_postassist", "y2_postimprove", "y2_postthink", "y2_program_pd1", "y2_program_pd2", "y2_program_pd3", "y2_program_pd4", "y2_program_kits", "y2_program_ped", "y2_program_comm", "y2_program_notchange", "y2_program_change", "y2_PostHeight_Feet")
+
+```
+
+```{r include=FALSE}
+#drop the columns contained in the variables "drops and drops2
+df <- teacher_clean[,!(names(teacher_clean) %in% drops)]
+df<- df[,!(names(df) %in% drops2)]
+#df will have 203 observarions and 279 variables
+
+```
+
+```{r include=FALSE}
+#repeat same steps from above
+drops3 <- c("Y1_PreHealthEdNumShift", "Y1_PreParticipateNumShift", "Y1_PostRace", "y1_PostHispanic", "Y1_PostGender", "Y1_PostStressInv", "Y1_PostVegetables", "Y1_PostOpen_NutEd2", "Y1_PreTobProduct", "Y1_PreVegetables", "Y1_PreTeacherResp", "Y1_PreIntegrate", "Y1_PreParticipate", "Y1_PreImpact", "Y1_PreAchievement", "Y1_PrePromote", "Y1_PreEnage", "Y1_PreValue", "Y1_PreMotivate", "Y1_PreAssist", "Y1_PreImprove", "Y1_PreThink", "Y1_PreHealthEdNumShift", "Y1_PreParticipateNumShift", "Y1_PreOpen_NutEd2", "Y1_PostTeacherResp", "Y1_PostIntegrate", "Y1_PostParticipate", "Y1_PostImpact", "Y1_PostAchievement", "Y1_PostPromote", "Y1_PostEnage", "Y1_PostValue", "Y1_PostMotivate", "Y1_PostAssist", "Y1_PostImprove", "Y1_PostThink", "Y1_PostHealthEdNumShift", "Y1_PostParticipateNumShift", "Y1_PrePost", "Y1_Program_Kits", "Y1_Program_Ped", "y2_preopen_nuted2", "y2_prepd_1physical", "y2_postmentalhealth", "y2_PostMotivateNumShift", "Y1_PostHeight_Inches", "Y1_PostHeight_Feet", "y2_PostHeight_Inches", "Y1_PreHeight_Feet", "Y1_PreHeight_Inches", "Y1_PostHispanic", "Y1_PostHypertension", "Y1_PostHealthEd", "Y1_PostSleep", "Y1_PostStudentHealth", "Y1_PostEngage", "Y1_PreHealthEd", "Y1_PreStudentHealth", "Y1_PostHeight_Total_Inches", "y2_preheight_feet", "y2_preheight_inches", "y2_preheight_total_inches", "y2_previg_intensity", "y2_prevegetables", "y2_PreImproveNumShift", "y2_postmentalhealth", "y2_postpd_5meditatio" )
+
+df<- df[,!(names(df) %in% drops3)]
+#now df will have 203 observarions and 219 variables 
+
+```
+
+```{r include=FALSE}
+#repeat again
+drops4 <- c("y3_prerace_other", "y3_prerace_2", "y3_prerace_3", "y3_prehispanic", "y3_prephyhealth", "y3_prehealth", "y3_prementalhealth", "y3_prestress", "y3_presmoke", "y3_prephyactive", "y3_presit", "y3_precomputer", "y3_presoda", "y3_prefruit", "y3_prevegetables", "y3_prewater", "y3_prebreakfast", "y3_predeliver_nuted", "y3_preopen_nuted", "y3_preother_nuted", "y3_preopen_nuted2", "y3_prehealthed", "y3_prestudenthealth", "y3_preteacherresp", "y3_preintegrate", "y3_preparticipate", "y3_preimpact", "y3_preachievement", "y3_prepromote", "y3_preengage", "y3_prevalue", "y3_premotivate", "y3_preassist", "y3_preimprove", "y3_prethink", "y3_prepd_1physical", "y3_prepd_2stress", "y3_prepd_3flu", "y3_prepd_4nutrition", "y3_prepd_5meditatio", "y3_prepd_6smoking", "y3_prepd_7ergo", "y3_prepd_8other", "y3_prepd_other", "ys_PreStressInv", "y3_PreStressInvNumShift", "y3_PreHealthNumShift", "y3_PreHealthEdNumShift", "y3_PreStudentHealthNumShift", "y3_PreTeacherRespNumShift", "y3_PreIntegrateNumShift", "y3_PreParticipateNumShift", "y3_PreImpactNumShift", "y3_PreAchievementNumShift", "y3_PrePromoteNumShift", "y3_PreEngageNumShift", "y3_PreValueNumShift", "y3_PreMotivateNUmShift", "y3_PreAssistNumShift", "y3_PreImproveNumShift", "y3_PreThinkNumShift")
+
+drops5 <- c("y3_post", "y3_postage", "y3_postrace", "y3_postrace_other", "y3_postrace_2", "y3_postrace_3", "y3_posthispanic", "y3_postphyhealth", "y3_posthealth", "y3_postmentalhealth", "y3_poststress", "y3_postsmoke", "y3_postphyactive", "y3_postsit", "y3_postcomputer", "y3_postsoda", "y3_postfruit", "y3_postvegetables", "y3_postwater", "y3_postbreakfast", "y3_postdeliver_nuted", "y3_postopen_nuted", "y3_postother_nuted", "y3_postopen_nuted2", "y3_posthealthed", "y3_poststudenthealth", "y3_postteacherresp", "y3_postintegrate", "y3_postparticipate", "y3_postimpact", "y3_postachievement", "y3_postpromote", "y3_postengage", "y3_postvalue", "y3_postmotivate", "y3_postassist", "y3_postimprove", "y3_postthink", "y3_postpd_1physical", "y3_postpd_2stress", "y3_postpd_3flu", "y3_postpd_4nutrition", "y3_postpd_5meditatio", "y3_postpd_6smoking", "y3_postpd_7ergo", "y3_postpd_8other", "y3_postpd_other", "ys_PostStressInv", "y3_PostStressInvNumShift", "y3_PostHealthNumShift", "y3_PostHealthEdNumShift", "y3_PostStudentHealthNumShift", "y3_PostTeacherRespNumShift", "y3_PostIntegrateNumShift", "y3_PostParticipateNumShift", "y3_PostImpactNumShift", "y3_PostAchievementNumShift", "y3_PostPromoteNumShift", "y3_PostEngageNumShift", "y3_PostValueNumShift", "y3_PostMotivateNUmShift", "y3_PostAssistNumShift", "y3_PostImproveNumShift", "y3_PostThinkNumShift", "y3_PreMotivateNumShift", "y3_postmentalhealth", "y3_postgender", "y3_postjobstress", "y3_posthealtheducationbeliefsmean", "y3_program_notchange", "y3_program_change", "y3_program_comm", "y3_program_ped", "y3_program_kits", "y3_program_pd4", "y3_program_pd3", "y3_program_pd2", "y3_program_pd1", "y3_prepost", "y3_postselfefficacymean", "y3_kit", "y3_lessonstaught", "y3_prepost", "y3_postmentalhealth")
+```
+
+```{r include=FALSE}
+df<- df[,!(names(df) %in% drops4)]
+#now will have 203 observations and 161 variables 
+
+
+#Last time
+teacher_final<- df[,!(names(df) %in% drops5)]
+##view(teacher_final)
+# A filter Column was created when we dropped variables. We will now get rid of that column 
+teacher_final<- teacher_final %>%
+  dplyr::select(-filter_.)
+
+#this teacher_final dataset will have 203 observations and 97 variables
+rm(df)
+```
+
+
+##Section 3: Standardize Varianle Names. 
+```{r include=FALSE}
+#duplicate the "Code" variable and School_Type variable because we are going to move into splitting up the teacher data into 2 datasets, 1 for year 1 and 1 for year 2 data
+
+teacher_final$y2_Code = teacher_final$Code
+teacher_final$y3_Code = teacher_final$Code
+teacher_final$y2_School_Type = teacher_final$School_Type
+teacher_final$y3_School_Type = teacher_final$School_Type
+
+```
+
+##Section 4: Split Teacher Data
+```{r include=FALSE}
+#now any variable with a y2 infront of it we will split into a seperate data set
+teacher_y2 <- teacher_final %>% 
+  dplyr::select(contains("y2")) #this dataset should have 203 observations and 26 variables
+
+teacher_y3 <- teacher_final %>%
+  dplyr::select(contains("y3")) #203 observations and 23 variables
+
+#remove y2s from the teacher_clean data set to create a y1 dataset 
+teacher_y1 <- teacher_final %>% dplyr::select(!contains("y2"))
+teacher_y1 <- teacher_y1%>% dplyr::select(!contains("y3")) #this dataset will have 203 observations and 52 variables 
+colnames(teacher_y1)
+```
+###Step 5: Filter some Teachers
+```{r include=FALSE}
+#teacher_y1 <- teacher_y1 %>%
+  #filter(Y1_Pre == "Yes" | Y1_Post == "Yes")
+
+#teacher_y2 <- teacher_y2 %>%
+  #filter(y2_pre == "1" | y2_post == "1")
+#teacher_y3<- teacher_y3 %>%
+  #filter(y3_pre == "1")
+
+#before merging datasets, write individual csvs of the created teacher datasets by year (because they only recieved pdsessions in year 1) make for year 2,3, 4, 5
+teacher_y1$Y1_PDSessions[is.na(teacher_y1$Y1_PDSessions)==TRUE] <- 0
+teacher_y1$Y1_LessonsTaught[is.na(teacher_y1$Y1_LessonsTaught)==TRUE] <- 0
+#write.csv(teacher_y1, "teacher_y1.csv")
+#write.csv(teacher_y2, "teacher_y2.csv")
+#write.csv(teacher_y3, "teacher_y3.csv")
+
+```
+
+```{r include=FALSE}
+rm(teacher_clean, teacher_final)
+```
+
+##Section 5: Create Datasets to Merge
+```{r include=FALSE}
+teacher_y1_melt<- teacher_y1
+teacher_y2_melt<- teacher_y2
+teacher_y3_melt<- teacher_y3
+#next is year 4 and 5
+```
+
+###Step 7:Standardize variable names by removing Y1_ or Y2_ or Y3 from colnames to prep for merge.  
+```{r include=FALSE}
+
+# Make Sure that Teacher Data Variables are the same 
+#colnames(teacher_y1_melt)
+#colnames(teacher_y2_melt)
+colnames(teacher_y1_melt)<- gsub("Y1_", "", colnames(teacher_y1_melt))
+colnames(teacher_y1_melt)<- gsub("y1_", "", colnames(teacher_y1_melt))
+
+
+colnames(teacher_y2_melt)<- gsub("Y2_", "", colnames(teacher_y2_melt))
+colnames(teacher_y2_melt)<- gsub("y2_", "", colnames(teacher_y2_melt))
+
+colnames(teacher_y3_melt)<- gsub("Y3_", "", colnames(teacher_y3_melt))
+colnames(teacher_y3_melt)<- gsub("y3_", "", colnames(teacher_y3_melt))
+```
+
+###Step 8: Create Program Year 
+```{r include=FALSE}
+#create new variable called program year 
+teacher_y3_melt$Program_Year <- 3 
+teacher_y2_melt$Program_Year<- 2
+teacher_y1_melt$Program_Year<- 1
+
+```
+###Step 9: Column names to Lower then Check Column Names Across Datasets. 
+```{r include=FALSE}
+
+# Columns to lower for merge
+colnames(teacher_y1_melt) <- tolower(colnames(teacher_y1_melt))
+colnames(teacher_y2_melt) <- tolower(colnames(teacher_y2_melt))
+colnames(teacher_y3_melt) <- tolower(colnames(teacher_y3_melt))
+
+#Now determine what variables exist in one dataset but not the others
+
+names1<- colnames(teacher_y1_melt)
+names2<- colnames(teacher_y2_melt)
+names3<- colnames(teacher_y3_melt)
+
+names1[(names1 %in% names2)==FALSE]
+names2[(names2 %in% names1)==FALSE] #delete post and prepost, but rename prehealtheducationbeliefmean
+names1[(names1 %in% names3)==FALSE]
+names3[(names3 %in% names1) == FALSE] #Rename prestressinv to prestress, rename prehealtheducationbeliefmean
+
+```
+
+```{r include=FALSE}
+#remove the columns (after you run this, go back and rerun the definig names and check to see if actually removed)
+
+teacher_y3_melt$prestress<- teacher_y3_melt$prestressinv
+teacher_y3_melt<- teacher_y3_melt %>%
+  dplyr::select(-prestressinv,-pre)
+
+#remove the columns
+teacher_y2_melt <- teacher_y2_melt %>%
+  dplyr::select(-c(post, prepost, pre))
+
+#rename this variable in the y1 dataset because the other ones are correct
+teacher_y1_melt$prehealtheducationbeliefmean <- teacher_y1_melt$prehealtheducationbeliefsmean
+
+#remove the columns
+teacher_y1_melt <- teacher_y1_melt %>%
+  dplyr::select(-prehealtheducationbeliefsmean)
+
+# teacher_y1_melt has both prehealtheducationbeliefs and prehealtheducationbelief - They Are The Same - so we remove Beliefs
+
+teacher_y2_melt<- teacher_y2_melt %>%
+  dplyr::select(-prehealtheducationbeliefsmean)
+```
+
+
+##Section 6: Create TeacherID 
+```{r include=FALSE}
+teacher_y1_melt$TeacherID<- as.factor(teacher_y1_melt$code)
+
+teacher_y1_melt<- teacher_y1_melt %>%
+  dplyr::select(-code)
+
+str(teacher_y2_melt$code)
+teacher_y2_melt$TeacherID<- as.factor(teacher_y2_melt$code)
+
+teacher_y2_melt<- teacher_y2_melt %>%
+  dplyr::select(-code)
+
+teacher_y3_melt$TeacherID<- as.factor(teacher_y3_melt$code)
+teacher_y3_melt<- teacher_y3_melt %>%
+  dplyr::select(-code)
+#The data is now ready to combine to create Teacher_Year variables.  
+```
+
+###Step 10: Full Join
+```{r include=FALSE}
+#do a full join on the datasets
+y1_y2 <- full_join(teacher_y1_melt, teacher_y2_melt)
+#Prestress is as character in y1_Y2 so fix
+y1_y2$prestress<- as.integer(y1_y2$prestress)
+teacher_all <- full_join(y1_y2, teacher_y3_melt)
+teacher_all %>%
+  filter(is.na(school)==TRUE)
+#filter out schools that don't have a name attached - these are blank across all variables except teacher ID 
+#view(teacher_all)
+teacher_all<-teacher_all %>%
+filter(school != "NA" | lessonstaught !="NA"|pdsessions >0) 
+
+
+#should have 281 observations and 53 variables
+#Check Different Variables to make sure we didn't lose any important data 
+
+#Read in first: table(teacher_data$y3_PDSessions)
+#table(teacher_all$pdsessions,teacher_all$program_year)
+```
+##Section 7: Tidying Up
+```{r include=FALSE}
+#Some schools are missing the type so need to recode them
+teacher_all$school_type[teacher_all$school== "Moten"] <- "Experimental"
+teacher_all$school_type[teacher_all$school== "JC Nalle"] <- "Experimental"
+teacher_all$school_type[teacher_all$school== "Houston"] <- "Control"
+teacher_all$school_type[teacher_all$school== "Turner"] <- "Control"
+#ask for school names for year 4 and 5 
+
+#need to recode the pdsessions and lessons taught to equal zero instead of NA
+teacher_all$pdsessions[is.na(teacher_all$pdsessions) == TRUE] <- 0
+teacher_all$lessonstaught[is.na(teacher_all$lessonstaught)==TRUE] <- 0
+
+#view(teacher_all) 
+#should have 281 obs and 53 variables.
+
+```
+
+```{r include=FALSE}
+#reove datasets 
+rm(y1_y2)
+```
+
+```{r include=FALSE}
+# Write Teacher_all 
+write.csv(teacher_all, "teacher_all.csv")
+
+```
+
+```{r echo=FALSE}
+head(teacher_all)
+```
+
+
+

@@ -1,0 +1,671 @@
+---
+title: "Student_data"
+author: "Lauren A. Kohls and Sarah Little"
+date: "4/9/2021"
+output: pdf_document
+---
+```{r setup, include=FALSE,warning=FALSE, message=FALSE, error=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+```
+
+```{r}
+# Load Libraries
+library(foreign)
+library(tidyverse)
+library(ggplot2)
+library(magrittr)
+```
+#Step1 : Read in Student Data
+```{r}
+# Read In STUDENT SPSS Files 
+student_data<- data.frame(read.spss('Y3Pre_Student Survey (1).sav'))
+
+student_data$Y1Pre[student_data$Code== "1363"] <- "No" #fix miscoding issue
+
+#Student 1322 is listed twice for Y2Pretest. We will keep the first appearance of 1322 in the data, as it contains Y2 and Y3 information for the student and will drop the second observation. The only difference in the Y3 scores for these students is the TeacherID.  
+
+student_data<- student_data %>%
+  filter(!(student_data$Code == "1322" & student_data$Y3TeacherID_Pretest == "1045")==TRUE)
+
+
+student_data<- student_data %>%
+  filter(Code != "3007") 
+# This student has no data entered 
+```
+
+
+
+#Step 2: Mutate Student Data so that knowledge percents and attitude percents are on the same scale (decimal vs. % )  
+
+```{r}
+student_data<- student_data %>%
+  rowwise() %>%
+  mutate(
+    Y1Pre_KnowledgePercentWithTaco = (Y1Pre_KnowledgePercentWithTaco/100),
+    Y1Post_KnowledgePercentWithTaco = (Y1Post_KnowledgePercentWithTaco/100),
+    Y1Pre_KnowledgePercentSansTaco = (Y1Pre_KnowledgePercentSansTaco/100),
+    Y1Post_KnowledgePercentSansTaco = (Y1Post_KnowledgePercentSansTaco/100),
+    Y1Pre_L23KnowledgePercentWithTaco = (Y1Pre_L23KnowledgePercentWithTaco/100),
+    Y1Post_L23KnowledgePercentWithTaco = (Y1Post_L23KnowledgePercentWithTaco/100),
+    Y1Pre_L23KnowledgePercentSansTaco = (Y1Pre_L23KnowledgePercentSansTaco/100),    Y1Post_L23KnowledgePercentSansTaco = (Y1Post_L23KnowledgePercentSansTaco/100),
+    Y1Knowledge_SansTaco_ScoreChange = Y1Knowledge_SansTaco_ScoreChange/100,
+    Y1Knowledge_WithTaco_ScoreChange = Y1Knowledge_WithTaco_ScoreChange/100,
+    Y2_KnowledgePercent_ScoreChange = Y2_KnowledgePercent_ScoreChange/100,
+       Y1Pre_L1KnowledgePercent = (Y1Pre_L1KnowledgePercent/100),
+       Y1Post_L1KnowledgePercent = (Y1Post_L1KnowledgePercent/100),
+#Year 2 
+    Y2Pre_KnowledgePercent = (Y2Pre_KnowledgePercent/100),
+    Y2Post_KnowledgePercent = (Y2Post_KnowledgePercent/100),
+       Y2Pre_L1KnowledgePercent = (Y2Pre_L1KnowledgePercent/100),
+       Y2Post_L1KnowledgePercent = (Y2Post_L1KnowledgePercent/100),
+       Y2Pre_L23KnowledgePercent = (Y2Pre_L23KnowledgePercent/100),
+       Y2Post_L23KnowledgePercent = (Y2Post_L23KnowledgePercent/100),
+# Year 3 
+Y3Pre_KnowledgePercent = (Y3Pre_KnowledgePercent/100),
+       Y3Pre_L1KnowledgePercent = (Y3Pre_L1KnowledgePercent/100),
+       Y3Pre_L23KnowledgePercent = (Y3Pre_L23KnowledgePercent/100),
+       Y3Post_KnowledgePercent = (Y3Post_KnowledgePercent/100),
+       Y3Post_L1KnowledgePercent = (Y3Post_L1KnowledgePercent/100),
+       Y3Post_L23KnowledgePercent = (Y3Post_L23KnowledgePercent/100))
+#view(student_data)
+
+```
+
+
+
+#Step 3: Correct Post Test Data for Y1 - There are no recorded Post Test TeacherIDs for Y1 so we use pretest IDs. We also fill in missing pre vs. post tests (if a student is missing a post test score we fill in from pre test score, vice versa)
+
+```{r}
+student_data$Y1TeacherID_Post_Test <- student_data$Y1TeacherID_Pretest
+
+student_data$Y2TeacherID_Post_Test[is.na(student_data$Y2TeacherID_Post_Test)==TRUE] <- student_data$Y2TeacherID_Pretest[is.na(student_data$Y2TeacherID_Post_Test)==TRUE] 
+
+student_data$Y2TeacherID_Pretest[is.na(student_data$Y2TeacherID_Pretest)==TRUE] <-student_data$Y2TeacherID_Post_Test[is.na(student_data$Y2TeacherID_Pretest)==TRUE]
+```
+
+#Step4: Create variables for Combined Attitude and Knowledge Scores
+```{r}
+ # Create variables for: Y1 Pre Combined Total, Post Combined Total, Pre Combined Percent, Post Combined Percent
+
+student_data<- student_data %>%
+  rowwise() %>%
+  mutate(
+    Y1Pre_CombinedPercent = sum((Y1Pre_KnowledgePercentWithTaco + Y1Pre_AttitudePercent)/2),
+    Y1Post_CombinedPercent= sum((Y1Post_KnowledgePercentWithTaco + Y1Post_KnowledgePercentWithTaco)/2),
+  Y1Pre_L23CombinedTotal = sum(Y1Pre_L23AttitudeTotal+Y1Pre_L23KnowledgeTotal),
+  Y1Post_L23CombinedTotal = sum(Y1Post_L23AttitudeTotal+Y1Post_L23KnowledgeTotal),
+  Y1Pre_L23CombinedPercent = sum((Y1Pre_L23AttitudePercent + Y1Pre_L23KnowledgePercentWithTaco)/2),
+  Y1Post_L23CombinedPercent = sum((Y1Post_L23AttitudePercent + Y1Post_L23KnowledgePercentWithTaco)/2),
+  Y1Pre_L1CombinedTotal = sum(Y1Pre_L1AttitudeTotal+Y1Pre_L1KnowledgeTotal),
+  Y1Post_L1CombinedTotal = sum(Y1Post_L1AttitudeTotal+Y1Post_L1KnowledgeTotal),
+  Y1Pre_L1CombinedPercent = sum((Y1Pre_L1AttitudePercent + Y1Post_L1AttitudePercent)/2),
+  Y1Post_L1CombinedPercent = sum((Y1Post_L1AttitudePercent + Y1Post_L1KnowledgePercent)/2)) %>%
+
+   # Create Variables for Y2 Pre Combined Total, Post Combined Total, Pre Combined Percent, Post Combined Percent
+  mutate(
+    Y2Pre_CombinedPercent = sum((Y2Pre_KnowledgePercent + Y2Pre_AttitudePercent)/2),
+    Y2Post_CombinedPercent = sum((Y2Post_KnowledgePercent+Y2Post_AttitudePercent)/2),
+    Y2Pre_L23CombinedTotal = sum(Y2Pre_L23AttitudeTotal + Y2Pre_L23KnowledgeTotal),
+    Y2Post_L23CombinedTotal = sum(Y2Post_L23AttitudeTotal + Y2Post_L23KnowledgeTotal),
+    Y2Pre_L23CombinedPercent = sum((Y2Pre_L23AttitudePercent + Y2Pre_L23KnowledgePercent)/2),
+    Y2Post_L23CombinedPercent = sum((Y2Post_L23AttitudePercent + Y2Post_L23KnowledgePercent)/2),
+     Y2Pre_L23CombinedTotal = sum(Y2Pre_L23AttitudeTotal + Y2Pre_L23KnowledgeTotal),
+     Y2Pre_L1CombinedTotal = sum(Y2Pre_L1AttitudeTotal + Y2Pre_L1KnowledgeTotal),
+    Y2Post_L1CombinedTotal = sum(Y2Post_L1AttitudeTotal + Y2Post_L1KnowledgeTotal),
+    Y2Pre_L1CombinedPercent = sum((Y2Pre_L1AttitudePercent + Y2Pre_L1KnowledgePercent)/2),
+    Y2Post_L1CombinedPercent = sum((Y2Post_L1AttitudePercent + Y2Post_L1KnowledgePercent)/2)) %>%
+  
+
+  
+  #Create variables for Y3 Pre Combined Totals, Pre Combined Percents, (#We do not have post data)
+  mutate(
+    Y3Pre_L23CombinedTotal = sum(Y3Pre_L23AttitudeTotal + Y3Pre_L23KnowledgeTotal),
+    Y3Pre_L23CombinedPercent = sum((Y3Pre_L23AttitudePercent + Y3Pre_L23KnowledgePercent)/2),
+    Y3Pre_L23CombinedTotal = sum(Y3Pre_L23AttitudeTotal + Y3Pre_L23KnowledgeTotal),
+    Y3Pre_L1CombinedPercent = sum(Y3Pre_L1AttitudePercent + Y3Pre_L1KnowledgePercent)/2)
+
+
+
+# Now, Create total and Combined Percent Changes 
+student_data<- student_data %>%
+  mutate(
+  Y1_L1CombinedPercentChange = sum((Y1Post_L1CombinedPercent-Y1Pre_L1CombinedPercent)),
+  Y1_L23CombinedPercentChange = sum((Y1Post_L23CombinedPercent - Y1Pre_L23CombinedPercent)),
+  Y1_L1CombinedTotalChange = sum((Y1Post_L1CombinedTotal - Y1Pre_L1CombinedTotal)),
+  Y1_L23CombinedTotalChange = sum((Y1Post_L23CombinedTotal - Y1Pre_L23CombinedTotal)),
+  Y2_L1CombinedPercentChange = sum((Y2Post_L1CombinedPercent-Y2Pre_L1CombinedPercent)),
+  Y2_L23CombinedPercentChange = sum((Y2Post_L23CombinedPercent - Y2Pre_L23CombinedPercent)),
+  Y2_L1CombinedTotalChange = sum((Y2Post_L1CombinedTotal - Y2Pre_L1CombinedTotal)),
+  Y2_L23CombinedTotalChange = sum((Y2Post_L23CombinedTotal - Y2Pre_L23CombinedTotal)))
+
+#write.csv(student_data_update, "student_data_update.csv")
+
+```
+
+
+#Now, We look at our student_data, and see that we have 1324 observations and 616 variables. 
+
+#Step 5: Filter out columns that are not going to be used for modeling
+```{r}
+# Now Filter Out unnecessary Columns leaving only combined scores such as knowledge percent/score - so that we have test scores instead of individual answers so we may cut down variables for the mlm: 
+student_data<- student_data %>%
+  dplyr::select(-c(contains("Y3Post"))) %>%
+  dplyr::select(-c(Y1Pre_L1Dairy:Y1Pre_L1Exercise, 
+            Y1Post_L1Dairy:Y1Post_L1Exercise,
+            Y2Pre_L1Dairy:Y2Pre_L1Exercise,
+            Y2Post_L1Dairy:Y2Post_L1Exercise,
+            Y3Pre_L1Dairy:Y3Pre_L1Exercise,
+            Y1Pre_L23Breakfast:Y1Pre_L23Taco_Tomato_Answer,
+            Y2Pre_L23Breakfast:Y2Pre_L23Taco_Cheese_Answer,
+            Y3Pre_L23Breakfast:Y3Pre_L23Taco_Cheese_Answer, 
+            Y1Post_L23Breakfast:Y1Post_L23Taco_Cheese_Answer,
+            Y2Post_L23Breakfast:Y2Post_L23Taco_Cheese_Answer)) %>%
+            dplyr::select(-contains(c("SansTaco", "sanstaco")))
+
+
+```
+
+Now we see the dataset decrease to 264 variables.
+
+
+# Step 6: Recode the Teacher Names in the student_data for Y2 as some are by ID and Some are by last name 
+```{r}
+# Recode Teacher Names for Y2 Moten Data
+
+student_data$`Y2TeacherID_Pretest` <- dplyr::recode(student_data$`Y2TeacherID_Pretest`,
+`Hawkins`	=	"3001",
+`Taylor`	=	"3002",
+`Harden`	=	"3003",
+`Johnson`	=	"3004",
+`Trimboli`	=	"3005",
+`Jackson`	=	"3006",
+`Goua`	=	"3007",
+`Jones`	=	"3008",
+`McCalvin`	=	"3009",
+`Wallace`	=	"3010",
+`Coates`	=	"3011",
+`Alston-Porter`	=	"3012",
+`Dixon`	=	"3013",
+`Adams`	=	"3014",
+`Pena`	=	"3015",
+`DuVall`	=	"3016",
+`Brown`	=	"3017",
+`McCoy`	=	"3018",
+`Denson`	=	"3019",
+`Hearn Jr.`	=	"3020",
+#Hearn Jr. and 3030 are not in dataset but "Hearns" is for moten. Recoded for Hearns. 
+`Hearns`= "3020",
+`Smith / Griffin`	=	"3021",
+`Smith.../Griffin ` = "3021",
+`Smith.../Griffin`= "3021",
+`Alston-Porter`	=	"3012",
+`Porter (Alston)` = "3012",
+`Hill`	=	"3023",
+`Moszczquiski`	=	"3024",
+`Key`	=	"3025",
+`Thorton`	=	"3026",
+`Lyles`	=	"3027",
+`Tharpe`	=	"3028",
+`Atkinson`	=	"3029",
+`Campbell-Woodward`	=	"3030",
+`King`	=	"3031",
+`Jones`	=	"3032",
+`Corney`	=	"3033",
+`Dogbe`	=	"3034",
+`Cottman`	=	"3035",
+`Harris`	=	"3036",
+`Eyo`	=	"3037",
+`Harris`	=	"3038",
+`Wood`	=	"3039",
+`Foust`	=	"3040",
+`Nichols`	=	"3041",
+`Jenkins`	=	"3042",
+`Wilson`	=	"3043",
+`McNeal`	=	"3044",
+`McMillian`	=	"3045",
+`McArthur`	=	"3046",
+`Lee`	=	"3047",
+`Smith`	=	"3048",
+`Davidson`	=	"3049",
+`Washington`	=	"3050",
+`Summers`	=	"3051",
+`Brown`	=	"3052",
+`Adelse`	=	"3053",
+`Miller`	=	"3054",
+`Khattab`	=	"3055",
+`Quick`	=	"3056",
+`Dunn`	=	"3057")
+
+
+
+student_data$`Y2TeacherID_Post_Test` <- dplyr::recode(student_data$`Y2TeacherID_Post_Test`,
+`Hawkins`	=	"3001",
+`Taylor`	=	"3002",
+`Harden`	=	"3003",
+`Johnson`	=	"3004",
+`Trimboli`	=	"3005",
+`Jackson`	=	"3006",
+`Goua`	=	"3007",
+`Jones`	=	"3008",
+`McCalvin`	=	"3009",
+`Wallace`	=	"3010",
+`Coates`	=	"3011",
+`Alston-Porter`	=	"3012",
+`Dixon`	=	"3013",
+`Adams`	=	"3014",
+`Pena`	=	"3015",
+`DuVall`	=	"3016",
+`Brown`	=	"3017",
+`McCoy`	=	"3018",
+`Denson`	=	"3019",
+`Hearn Jr.`	=	"3020",
+#Hearn Jr. and 3030 are not in dataset but "Hearns" is for moten. Recoded for Hearns. 
+`Hearns`= "3020",
+`Smith / Griffin`	=	"3021",
+`Smith.../Griffin ` = "3021",
+`Smith.../Griffin`= "3021",
+`Alston-Porter`	=	"3012",
+`Porter (Alston)` = "3012",
+`Porter` = "3012",
+`Hill`	=	"3023",
+`Moszczquiski`	=	"3024",
+`Key`	=	"3025",
+`Thorton`	=	"3026",
+`Lyles`	=	"3027",
+`Tharpe`	=	"3028",
+`Atkinson`	=	"3029",
+`Campbell-Woodward`	=	"3030",
+`King`	=	"3031",
+`Jones`	=	"3032",
+`Corney`	=	"3033",
+`Dogbe`	=	"3034",
+`Cottman`	=	"3035",
+`Harris`	=	"3036",
+`Eyo`	=	"3037",
+`Harris`	=	"3038",
+`Wood`	=	"3039",
+`Foust`	=	"3040",
+`Nichols`	=	"3041",
+`Jenkins`	=	"3042",
+`Wilson`	=	"3043",
+`McNeal`	=	"3044",
+`McMillian`	=	"3045",
+`McArthur`	=	"3046",
+`Lee`	=	"3047",
+`Smith`	=	"3048",
+`Davidson`	=	"3049",
+`Washington`	=	"3050",
+`Summers`	=	"3051",
+`Brown`	=	"3052",
+`Adelse`	=	"3053",
+`Miller`	=	"3054",
+`Khattab`	=	"3055",
+`Quick`	=	"3056",
+`Dunn`	=	"3057")
+
+#Smith/ Griffin isn't working so use str_detect to find occurances of Griffin in the data
+#str_detect(student_data$Y2TeacherID_Post_Test, "Griffin" )
+
+#need to convert to character strings in order to use the stringr package 
+student_data$Y2TeacherID_Post_Test <- as.character(student_data$Y2TeacherID_Post_Test)
+student_data$Y2TeacherID_Pretest <- as.character(student_data$Y2TeacherID_Pretest)
+
+#use regx to find the observations that contain the string Griffin and convert the entire observtion to the Teacher ID
+student_data %<>%
+  mutate(Y2TeacherID_Post_Test = case_when(
+    str_detect(Y2TeacherID_Post_Test, ".*Griffin.*") ~ "3021",
+    TRUE ~ Y2TeacherID_Post_Test
+    )
+  )
+
+#use regx to find the observations that contain the string Griffin and convert the entire observtion to the Teacher ID
+student_data %<>%
+  mutate(Y2TeacherID_Pretest = case_when(
+    str_detect(Y2TeacherID_Pretest, ".*Griffin.*") ~ "3021",
+    TRUE ~ Y2TeacherID_Pretest
+    )
+  )
+
+
+# Check to see if they have been fixed appropriately
+#table(student_data$Y2TeacherID_Post_Test)
+#table(student_data$Y2TeacherID_Pretest)
+
+```
+#Step 7: Split Data into Y1, Y2 and Y3
+```{r}
+# Select Demographic and Y1 Data for our y1_student data set. 
+y1_student_data<- student_data %>%
+  dplyr::select(c(1:4, contains("y1")))
+#y1_student_data should have 1324 observations and 57 variables
+
+# Select Demographic and Y2 Data for our y2_student data set 
+y2_student_data<- student_data %>%
+  dplyr::select(c(1:4, contains("Y2")))
+#y2_student_data should have 1324 observations and 53 variables
+
+#Select Demographic and Y3 Data for our y3_data set 
+y3_student_data<- student_data %>%
+  dplyr::select(c(1:4, contains("Y3")))
+#y3_student_data should have 1324 observations and 28 variables
+
+
+```
+
+
+# Step 8: Get Rid of NAs for Pre/Post Datasets by keeping only observations that contain a "Yes" for either pre or post. Note the number of observations to check in the next step. 
+```{r}
+
+# Get rid of data for students that have NAs for both Pre  & Post surveys for specific year. 
+
+student_y1 <- y1_student_data %>%
+filter(Y1Pre == "Yes"| Y1Post == "Yes")
+#student_y1 should have 396 observations and 57 variables 
+
+student_y2 <- y2_student_data %>%
+  filter(Y2Pre == "Yes" | Y2Post == "Yes")
+#student_y2 should have 654 observations and 57 variables 
+#print(unique(student_y2$TeacherID_Post_Test))
+
+student_y3 <- y3_student_data %>%
+  filter(Y3Pre == "Yes")
+
+student_y3<- student_y3 %>%
+  filter(Y3Pre_AttitudePercent <= 1) %>%
+  filter(Y3Pre_KnowledgePercent <= 1)
+
+# This will change obs for student_y3 - which would have had 764 observations and 28 variables But we just removed 13 mis-coded  scores and will now have 751 instead. 
+```
+# Step 9: Check Data to make sure that the filter has only removovd the data we were looking to get rid of: 
+```{r}
+
+student_data %>%
+  filter(Y3Pre == "Yes") %>%
+  nrow()
+# Orig data had more but we took out scores that had an input error so we have 751
+
+student_data %>%
+  filter(Y2Pre == "Yes" | Y2Post == "Yes") %>%
+  nrow()
+# We should have 654 and we do
+
+student_data %>%
+  filter(Y1Pre == "Yes" | Y1Post == "Yes") %>%
+  nrow()
+## This is fine (-1 due to recoding of 1 variable for Y1Post == No)
+
+
+#summary(y1_student_data)
+#summary(y2_student_data)
+#summary(y3_student_data)
+
+```
+#Step 10: Now Create Program_Year for each dataset so that we can merge them together after joining with teacher data. 
+
+```{r}
+student_y1$Program_Year<- 1
+student_y2$Program_Year<- 2
+student_y3$Program_Year<- 3
+
+```
+
+#Rename Datasets so that we still have student_y1 student_y2 and student_y3 will full variable names in the event that we need to use them later. 
+```{r}
+y1_student_data_melt<- student_y1 #rename datasets
+y2_student_data_melt<- student_y2 #rename datasets
+y3_student_data_melt<- student_y3 #rename datasets
+
+#remove datasets 
+rm(y1_student_data, y2_student_data, y3_student_data)
+
+```
+
+
+#Step 11: Edit Column Names So that we can stack the data to create a melted dataset. Here, we will standardize names across each year, and will remove year markers (i.e. Y1_ Y2_ Y3_ etc. ) 
+```{r}
+#Now, edit the column names, this will allow us to melt the datasets together. In order to do that, the column names need to be in the same case: 
+
+colnames(y3_student_data_melt) <- gsub("Y3_", "", colnames(y3_student_data_melt))
+colnames(y3_student_data_melt)<- gsub("Y3", "", colnames(y3_student_data_melt))
+
+# Now Y2 
+colnames(y2_student_data_melt) <- gsub("Y2_", "", colnames(y2_student_data_melt))
+colnames(y2_student_data_melt)<- gsub("Y2", "", colnames(y2_student_data_melt))
+
+#colnames(y1_student_data_melt)
+
+colnames(y1_student_data_melt) <- gsub("Y1_", "", colnames(y1_student_data_melt))
+colnames(y1_student_data_melt)<- gsub("Y1", "", colnames(y1_student_data_melt))
+colnames(y1_student_data_melt)<- gsub("WithTaco", "", colnames(y1_student_data_melt))
+# Change Lessons Received to match across datasets
+colnames(y2_student_data_melt)<- gsub("LessonsReceived1", "LessonsReceived", colnames(y2_student_data_melt))
+colnames(y3_student_data_melt)<- gsub("LessonsReceived1", "LessonsReceived", colnames(y3_student_data_melt))
+#Fix score changes/attitude changes
+colnames(y1_student_data_melt)<- gsub("Knowledge__ScoreChange", "KnowledgePercent_ScoreChange", colnames(y1_student_data_melt))
+colnames(y1_student_data_melt) <- gsub("AttitudePercentChange", "AttitudePercent_ScoreChange", colnames(y1_student_data_melt))
+```
+
+# Step 12: Check Variable Names And Standardize Across Each Dataset: 
+```{r}
+#Now determine what variables exist in one dataset that do not exist in the other. 
+
+
+y3_student_data_melt <- y3_student_data_melt %>%
+ dplyr::select(-Pre_AttitudeTotal) # Column is ALL NA and is not in y1 data
+
+names1<- colnames(y1_student_data_melt)
+names2<- colnames(y2_student_data_melt)
+names3<- colnames(y3_student_data_melt)
+names1[(names1 %in% names2)==FALSE]
+names2[(names2 %in% names1)==FALSE]
+names3[(names3 %in% names1) == FALSE]
+
+# We will leave the post gen scores for Y1 in the event that we want to analyze them later with only y1 data. 
+```
+We can see that there are  the post gen columns that exist in Year 1 data, but none that exist in Year 2 and Year 3 that do not also exist in Year 1. This means we are ready to merge. 
+
+```{r}
+#First, we check out the number of observation in each to make sure we didn't lose anything. We are still good! 
+length(y1_student_data_melt$Code)+
+length(y2_student_data_melt$Code)+
+length(y3_student_data_melt$Code)
+
+
+```
+Now we transform variables into factor level so that they are of the same class when we merge. 
+```{r}
+y1_student_data_melt$TeacherID_Pretest <- as.factor(y1_student_data_melt$TeacherID_Pretest)
+y3_student_data_melt$TeacherID_Pretest <- as.factor(y3_student_data_melt$TeacherID_Pretest)
+
+#do same thing above as with the student code and TeacherID_Post_Test
+y1_student_data_melt$Code<- as.factor(y1_student_data_melt$Code)
+y2_student_data_melt$Code<- as.factor(y2_student_data_melt$Code)
+
+y1_student_data_melt$TeacherID_Post_Test<- as.factor(y1_student_data_melt$TeacherID_Post_Test)
+y3_student_data_melt$Code<- as.factor(y3_student_data_melt$Code)
+y3_student_data_melt$TeacherID_Post_Test<- as.factor(y3_student_data_melt$TeacherID_Post_Test)
+
+```
+
+#We are done with these : so write csvs. 
+```{r}
+
+write.csv(student_y1, "student_y1.csv")
+write.csv(student_y2, "student_y2.csv")
+write.csv(student_y3, "student_y3.csv")
+rm(student_y1, student_y2, student_y3)
+```
+#Now we split Student Data into Pre and Post By Year :(To Appropriately Merge The Data, we need to break Student Data into Pre and Post Scores so that we can merge based on the pre vs post TeacherID.) 
+```{r}
+y1_post <-  y1_student_data_melt%>%
+  dplyr::select(!contains("Pre")|!contains("pre")) %>%
+  filter(Post == "Yes") %>%
+  dplyr::select(-Post)
+
+#Select Post Test As Teacher ID 
+y1_post$TeacherID<- y1_post$TeacherID_Post_Test
+y1_post$Test <- "Post"
+
+y1_post<- y1_post %>%
+  dplyr::select(-TeacherID_Post_Test)
+
+
+y1_pre<- y1_student_data_melt%>%
+  dplyr::select(!contains("Post")|!contains("Post")) %>%
+   filter(Pre == "Yes") %>%
+  dplyr::select(-Pre)  
+y1_pre$TeacherID<- y1_pre$TeacherID_Pretest
+
+y1_pre<- y1_pre %>%
+  dplyr::select(-TeacherID_Pretest)
+
+y1_pre$Test <- "Pre"
+y1_post$Test<- "Post"
+```
+# Same for Y2
+```{r}
+y2_post <-  y2_student_data_melt%>%
+  dplyr::select(!contains("Pre")|!contains("pre")) %>%
+   filter(Post == "Yes") %>%
+  dplyr::select(-Post) 
+y2_post$TeacherID<- y2_post$TeacherID_Post_Test
+
+y2_post<- y2_post %>%
+  dplyr::select(-TeacherID_Post_Test)
+
+y2_pre<- y2_student_data_melt%>%
+  dplyr::select(!contains("Post")|!contains("Post")) %>%
+   filter(Pre == "Yes") %>%
+  dplyr::select(-Pre)  
+
+y2_pre$TeacherID<- as.factor(y2_pre$TeacherID_Pretest)
+
+y2_pre<- y2_pre %>%
+  dplyr::select(-TeacherID_Pretest)
+
+y2_post$Test <- "Post"
+y2_pre$Test <- "Pre"
+```
+
+#Same For Y3
+```{r}
+y3_pre<- y3_student_data_melt%>%
+  dplyr::select(!contains("Post")|!contains("Post")) %>%
+ filter(Pre == "Yes") %>%
+  dplyr::select(-Pre)
+
+y3_pre$Test <- "Pre"
+y3_pre$TeacherID<- y3_pre$TeacherID_Pretest
+
+y3_pre<- y3_pre %>%
+  dplyr::select(-TeacherID_Pretest)
+
+y3_student_data_melt<- y3_pre
+```
+
+
+
+# Now Remove Pre_ and Post_ from Column Names so that we can stack data
+```{r}
+#now remove terms Pre and Post for each year for the MELTED dataset: 
+colnames(y1_pre) <- gsub("Pre_", "", colnames(y1_pre))
+colnames(y1_pre) <- gsub("pre", "", colnames(y1_pre))
+colnames(y1_post) <- gsub("Post_", "", colnames(y1_post))
+colnames(y1_post) <- gsub("post", "", colnames(y1_post))
+#colnames(y1_pre)
+#colnames(y1_post)
+
+y1_student_data_melt<- full_join(y1_pre, y1_post)
+
+
+```
+# Remove Pre_/Post_ for Y2 and Join 
+```{r}
+#now remove terms Pre and Post for each year of the Melted Data Not TTEST Data  Y2
+colnames(y2_pre) <- gsub("Pre_", "", colnames(y2_pre))
+colnames(y2_pre) <- gsub("pre", "", colnames(y2_pre))
+colnames(y2_post) <- gsub("Post_", "", colnames(y2_post))
+colnames(y2_post) <- gsub("post", "", colnames(y2_post))
+#colnames(y2_pre)
+#colnames(y2_post)
+
+y2_student_data_melt<- full_join(y2_pre, y2_post)
+
+```
+# Check that we did not lose any observations: See Environment - Observatinos in _pre and _post datasets shoudl add up to the _student_data_melt.
+
+
+# Remove Pre_ and pre from Y3 (No Join Because We Do not have post data)
+```{r}
+colnames(y3_pre) <- gsub("Pre_", "", colnames(y3_pre))
+colnames(y3_pre) <- gsub("pre", "", colnames(y3_pre))
+y3_student_data_melt <- y3_pre
+```
+
+
+# Join Datasets for one stacked dataset
+```{r}
+student_all<- full_join(y1_student_data_melt, y2_student_data_melt)
+
+student_all<- full_join(student_all, y3_student_data_melt)
+```
+#Write and Remove student data melts 
+```{r}
+write.csv(y1_student_data_melt, "y1_student_data_melt.csv")
+write.csv(y2_student_data_melt, "y2_student_data_melt.csv")
+write.csv(y3_student_data_melt, "y3_student_data_melt.csv")
+```
+
+# We will use this  to create Student_Year within our dataset. 
+
+```{r}
+#Create Student YEar To Merge Later
+#view(y1_student_data_melt)
+
+student_year<- full_join(y1_student_data_melt, y2_student_data_melt)
+student_year<- full_join(student_year, y3_student_data_melt)
+#view(student_year)
+student_year<- student_year %>%
+  group_by(Code, Program_Year) %>%
+  summarize() %>%
+  mutate(Student_Year = 1:n()) %>%
+  dplyr::select(Code, Program_Year, Student_Year)
+
+student_all1<- merge(student_all, student_year, by = c("Code", "Program_Year"))
+
+student_all<- student_all1
+# Set Pre and Post as Factors
+student_all$Test<- factor(student_all$Test, levels = c("Pre", "Post"))
+
+
+```
+#Now Create Lessons Received Bucket
+```{r}
+
+student_all$LessonsReceived[is.na(student_all$LessonsReceived)==TRUE] <- 0
+student_all %<>%
+    mutate(LessonsReceived_bucket = as.factor(case_when( LessonsReceived < 3 ~ "L", LessonsReceived == 3 ~ "I", LessonsReceived > 3 ~ "M")))
+
+table<- student_all%>%
+  filter(Program_Year == 1) %>%
+  filter(Test == "Post") %>%
+  filter(is.na(KnowledgePercent_ScoreChange) == FALSE)
+  
+
+```
+#Now Create Student Exposure To Test
+```{r}
+student_all<- student_all %>% 
+  group_by(Code) %>% 
+  arrange(Program_Year, Test) %>%
+  mutate(Index=1:n()) %>%
+  mutate(Test_Exposure = Index-1) %>%
+  ungroup() %>%
+  dplyr::select(-Index,-TeacherID_Same)
+
+student_all<- student_all %>%
+    relocate(Code, School, School_Type, Program_Year, Student_Year, Test_Exposure, Test, TeacherID, LessonsReceived, LessonsReceived_bucket)
+#view(student_all) 
+write.csv(student_all, "student_all.csv")
+```
+

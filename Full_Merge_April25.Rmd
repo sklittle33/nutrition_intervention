@@ -1,0 +1,392 @@
+---
+title: "NIFA"
+author: "Lauren A. Kohls and Sarah Little"
+date: "3/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE,warning=FALSE, message=FALSE, error=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message=FALSE)
+```
+
+```{r}
+# Load Libraries
+library(foreign)
+library(tidyverse)
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+```
+# Step1: Read in Teacher and Student Data and Separate By Year: 
+```{r}
+student_all<- read.csv("student_all.csv")
+teacher_all<- read.csv("teacher_all.csv")
+
+y1_student_data_melt<- student_all %>%
+  filter(Program_Year == 1)
+y2_student_data_melt <- student_all %>%
+  filter(Program_Year == 2)
+y3_student_data_melt <- student_all %>%
+  filter(Program_Year == 3)
+
+teacher_y1_melt<- teacher_all %>%
+  filter(program_year ==1)
+teacher_y2_melt<- teacher_all %>%
+  filter(program_year == 2)
+teacher_y3_melt<- teacher_all %>%
+  filter(program_year == 3)
+
+#write.csv(teacher_y1_melt, "teacher_y1_melt.csv")
+#write.csv(teacher_y2_melt, "teacher_y2_melt.csv")
+#write.csv(teacher_y2_melt, "teacher_y2_melt.csv")
+```
+
+# Check to make sure that we have the appropriate ammount of variables by comparing the number of observations (loaded in the global environment) to the original SPSS data
+```{r}
+student_data <- student_data<- data.frame(read.spss('Y3Pre_Student Survey (1).sav'))
+
+# Year 1 Pre Length  
+length1<- student_data %>%
+  filter(Y1Pre == "Yes") %>%
+  nrow()
+
+length2<- student_data %>%
+  filter(Y1Post== "Yes") %>%
+  nrow()
+
+#The Sum of these should equal the number of obs in our y1 melt 
+sum(length1+length2)
+length(y1_student_data_melt$Code) 
+
+# We had to edit student_data$Y1Pre[student_data$Code== "1363"] <- "No" to fix a coding error, so the correct length is 646 not 647 so we are good. 
+```
+
+```{r}
+#Repeat for Y2 
+pre_2<- student_data %>%
+  filter(Y2Pre == "Yes")
+length3<- length(pre_2$Code)
+post_2<- student_data %>%
+  filter(Y2Post == "Yes")
+length4<- length(post_2$Code)
+#Length Y2Student_data_Melt
+sum(length3+length4)
+length(y2_student_data_melt$Code)
+
+#Lengths Match!
+```
+
+
+```{r}
+#Repeat for 3" 
+pre3<- student_data %>%
+  filter(Y3Pre == "Yes") %>%
+  nrow()
+length5<- length(y3_student_data_melt$Code)
+
+pre3
+length5
+
+#### The Difference here makes sense because we removed knowledge and attitude scores/percentages that had input errors. 
+
+Full_Length<- sum(length1-1+length2+length3+length4+length5)
+# We should have 2407 data points in our Fully Merged dataset. 
+Full_Length
+```
+
+
+############################################################
+#We are now ready to merge the teacher_y1_melt data and the y1_student_data_melt by a left join on TeacherID
+
+```{r}
+y1_student_data_melt$TeacherID<- as.factor(y1_student_data_melt$TeacherID)
+teacher_y1_melt$TeacherID<- as.factor(teacher_y1_melt$TeacherID)
+
+y1_merge<- left_join(y1_student_data_melt, teacher_y1_melt, by = "TeacherID")
+
+num_cols<- (length(y1_student_data_melt)+length(teacher_y1_melt))-1
+```
+
+#Merge Year Two Data
+```{r}
+#Lastly, merge the student and teacher data from year 2 by a left join on the TeacherID
+
+y2_student_data_melt$TeacherID<- as.factor(y2_student_data_melt$TeacherID)
+teacher_y2_melt$TeacherID<- as.factor(teacher_y2_melt$TeacherID)
+y2_merge<- left_join(y2_student_data_melt, teacher_y2_melt, by = "TeacherID")
+#y2_merge should have 1010 obs and 76 variables 
+```
+
+#Lastly, merge student data with teacher data for year 3 
+```{r}
+y3_student_data_melt$TeacherID<- as.factor(y3_student_data_melt$TeacherID)
+teacher_y3_melt$TeacherID<- as.factor(teacher_y3_melt$TeacherID)
+y3_merge<- left_join(y3_student_data_melt, teacher_y3_melt, by = "TeacherID")
+#view(y3_merge)
+
+#y3_merge should have 751 observations 
+```
+
+
+#This section focuses on merging the 3 different years datasets into 1 
+
+```{r}
+#in order to merge the datasets, the variables have to be in the same format 
+y1_merge$TeacherID<- as.factor(y1_merge$TeacherID)
+y2_merge$TeacherID<- as.factor(y2_merge$TeacherID)
+
+#fulljoin 
+
+y1_y2_merge <- full_join(y1_merge, y2_merge) #this dataset should have 1057 obs. and 108 variables 
+```
+
+#Now, merge the y1_y2_merge with the y3
+
+```{r}
+y3_merge$TeacherID<- as.factor(y3_merge$TeacherID)
+merged_all<- full_join(y1_y2_merge, y3_merge) #this dataset should have 2135 obs. and 111 variables 
+```
+
+
+```{r}
+#remove unnessesary datasets
+rm(y1_y2_merge)
+```
+
+
+# Tidying Up: Recode Lessons Recieved = NA to 0 
+
+```{r}
+#we want the lessons recieved to all be numeric because this will impact modeling, also makes sense. Techincally if the control schools receieved NAs for lessons, they didn't receieve any lessons... == 0
+is.num<- select_if(merged_all,is.numeric)
+merged_all$LessonsReceived[is.na(merged_all$LessonsReceived) ==TRUE] <- 0
+
+merged_all$pdsessions[is.na(teacher_all$pdsessions) == TRUE] <- 0
+merged_all$lessonstaught[is.na(teacher_all$lessonstaught)==TRUE] <- 0
+
+```
+
+# Make Sure Test is appropraitely Factored  
+
+```{r}
+merged_all$Test<- factor(merged_all$Test, levels = c("Pre", "Post"))
+```
+
+Code Teacher Year # We need to do it here and not in the teacher data cleaning because some teachers that taught in Y2 and Y3 did not complete the survey - so they will not come up in our teacher_all for their respective years, but they will show up in the merged_all. 
+```{r}
+#view(merged_all)
+teacher_year<- merged_all %>%
+  dplyr::select(Program_Year, TeacherID, School) %>%
+  group_by(TeacherID, Program_Year) %>%
+  summarize()%>%
+  mutate(teacher_year = 1:n()) %>%
+  dplyr::select(TeacherID, Program_Year, teacher_year)
+
+merged_all<- merge(merged_all, teacher_year, by = c("TeacherID", "Program_Year"))
+
+#rename the data 
+full_data<- merged_all %>%
+  relocate(Code, School_Type, School, Program_Year, Student_Year, teacher_year, TeacherID, lessonstaught, LessonsReceived, LessonsReceived_bucket) %>%
+  group_by(Code) %>%
+  fill(Gender)
+
+#view(full_data)
+```
+
+ 
+
+
+```{r}
+#compare names in full_data with merge_all 
+names1<- colnames(full_data)
+names2<- colnames(merged_all)
+names1[(names1 %in% names2)== FALSE]
+names2[(names2 %in% names1)==FALSE]
+
+#Looks Good! 
+```
+
+
+# Now We want to check our dataset to make sure that we have not dropped any points in the full merge. To do this, we will compare it to the full student and teacher datasets. 
+
+
+```{r}
+student_data<- data.frame(read.spss('Y3Pre_Student Survey (1).sav'))
+
+# Checking Program Year 1: 
+full_data %>%
+  filter(Program_Year == 1) %>%
+  filter(Test == "Pre") %>%
+  nrow()
+
+student_data %>%
+  filter(Y1Pre == "Yes") %>%
+  nrow()
+#This is Fine this is the one drop
+```
+```{r}
+full_data %>%
+  filter(Program_Year == 2) %>%
+  filter(Test == "Pre") %>%
+  nrow()
+
+student_data %>%
+  filter(Y2Pre == "Yes") %>%
+  nrow()
+
+#Same!
+```
+```{r}
+full_data %>%
+  filter(Program_Year == 3) %>%
+  filter(Test == "Pre") %>%
+  nrow()
+
+student_data %>%
+  filter(Y3Pre == "Yes") %>%
+  nrow() 
+# We should have 751 not 764 after removing data with input errors in Y3 (This was done in Student_Cleaning for data points with input errors that produced scores greater than 100% )
+```
+# Now Checking Post Data
+ 
+```{r}
+full_data %>%
+  filter(Program_Year == 1) %>%
+  filter(Test == "Post") %>%
+  nrow()
+
+student_data %>%
+  filter(Y1Post == "Yes") %>%
+  nrow()
+```
+
+# We Now Have The Desired 320. So we look at Y2 Post Data: 
+```{r}
+full_data %>%
+  filter(Program_Year == 2) %>%
+  filter(Test == "Post") %>%
+  nrow()
+
+student_data %>%
+  filter(Y2Post == "Yes") %>%
+  nrow()
+```
+
+# Now we can see that we did not drop any ovservations from the merge. 
+#view(full_data)
+```{r}
+full_data<- full_data %>%
+  relocate(Code, School, School_Type, Program_Year, Student_Year, teacher_year, TeacherID, LessonsReceived, lessonstaught, LessonsReceived_bucket) 
+```
+#Lastly, write the final csvs
+```{r}
+#view(full_data)
+#view(full_data)
+
+#full_data %>%
+  #filter(program_year == 3)
+full_data<- full_data %>%
+  dplyr::select(-X.x) %>%
+  dplyr::select(-X.y) %>%
+  dplyr::select(-pre)
+
+
+full_data %>%
+  filter((is.na(KnowledgePercent)==TRUE)) %>%
+  dplyr::select(-level) %>%
+  dplyr::select(-grade_oth)
+
+
+full_data$KnowledgePercent[is.na(full_data$KnowledgePercent) == TRUE] <- full_data$L23KnowledgePercent[is.na(full_data$KnowledgePercent)==TRUE]
+```
+
+```{r}
+#Change the age of the one teacher that said they were 2 
+full_data$preage[full_data$preage<=2] <- NA
+
+
+full_data$Grade <- as.factor(full_data$Grade)
+full_data$School <- as.factor(full_data$School)
+full_data$Gender_1[is.na(full_data$Gender)==FALSE]<- 0
+full_data$Gender_1[full_data$Gender == "Girl"] <- 1
+
+full_data$lessonstaught[is.na(full_data$lessonstaught)==TRUE] <- 0
+full_data$pdsessions[is.na(full_data$pdsessions)==TRUE] <- 0
+full_data$Code <- as.factor(full_data$Code)
+full_data$Grade <- as.factor(full_data$Grade)
+full_data$preage[full_data$preage < 18] <- NA
+
+```
+
+Need the following code for the imputatiion and the model rmd files
+```{r}
+full_data %<>%
+  filter(is.na(TeacherID)==FALSE)
+full_data %<>%
+  filter(is.na(Level)==FALSE)
+full_data %<>%
+  filter(is.na(KnowledgePercent)==FALSE)
+full_data %<>%
+  filter(is.na(KnowledgePercent)==FALSE)
+```
+
+Fix miscoding 
+```{r}
+full_data$Both[full_data$Code== "1181"] <- "No"
+full_data$Both[full_data$Code== "1182"] <- "No"
+full_data$Both[full_data$Code== "1184"] <- "No"
+full_data$Both[full_data$Code== "1185"] <- "No"#fix miscoding issue
+full_data$Both[full_data$Code== "1186"] <- "No"
+full_data$Both[full_data$Code== "1187"] <- "No"
+full_data$Both[full_data$Code== "1188"] <- "No"
+full_data$Both[full_data$Code== "1189"] <- "No"
+full_data$Both[full_data$Code== "1190"] <- "No"
+full_data$Both[full_data$Code== "1191"] <- "No"
+full_data$Both[full_data$Code== "1192"] <- "No"
+full_data$Both[full_data$Code== "1194"] <- "No"
+full_data$Both[full_data$Code== "1196"] <- "No"
+full_data$Both[full_data$Code== "1197"] <- "No"
+full_data$Both[full_data$Code== "1198"] <- "No"
+full_data$Both[full_data$Code== "1199"] <- "No"
+full_data$Both[full_data$Code== "2145"] <- "No"
+full_data$Both[full_data$Code== "2146"] <- "No"
+full_data$Both[full_data$Code== "2147"] <- "No"
+full_data$Both[full_data$Code== "2148"] <- "No"
+full_data$Both[full_data$Code== "2149"] <- "No"
+full_data$Both[full_data$Code== "2150"] <- "No"
+full_data$Both[full_data$Code== "2151"] <- "No"
+full_data$Both[full_data$Code== "2152"] <- "No"
+full_data$Both[full_data$Code== "2153"] <- "No"
+```
+
+```{r}
+full_data$LessonsReceived[full_data$Test=="Pre"] <- 0
+full_data$LessonsReceived_bucket[full_data$Test=="Pre"] <- "L"
+full_data$pdsessions[full_data$Test=="Pre"] <- 0
+```
+
+```{r}
+#make another option for bucketing lessons
+full_data$lessons_1<- "No"
+full_data$lessons_1[full_data$LessonsReceived_bucket != "L"] <- "Yes"
+```
+
+```{r}
+#rename some of the longer column names 
+full_data %<>%
+  rename(lesson_bucket = LessonsReceived_bucket)
+full_data %<>%
+  rename(test_exp = Test_Exposure)
+```
+
+
+```{r}
+write.csv(full_data, "full_data.csv") #use this one for MLM
+```
+
+```{r}
+view(full_data)
+```
+
+
+

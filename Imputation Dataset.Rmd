@@ -1,0 +1,56 @@
+---
+title: "Imputation Dataset"
+output: html_document
+---
+
+```{r}
+library(mice)
+library(tidyverse)
+```
+
+```{r}
+full_data <- read.csv("full_data.csv")
+```
+
+Start with imputing the data. We know from earlier analysis that there is a large proportion of the variables in the dataset missing a lof of observations. If we do not impute the data, then it makes it very difficult/ impossible to perform analyses on the variables in the dataset. 
+
+Look at the missing data:
+```{r}
+aggr_plot <- aggr(full_data, col=c('darkblue','darkred'), numbers=TRUE, sortVars=TRUE, labels=names(data), cex.axis=.7, gap=3, ylab=c("Histogram of missing data","Pattern"))
+
+
+```
+From the plots above we can see a large number of the variables are missing over 80% of their observations and many more mising well above 50% of their observations.
+
+
+```{r}
+#impute data
+#we need to seperate the variables out that we don't want imputed on like identification variables
+imputed_data<- full_data %>%
+  dplyr::select(-c("Code", "TeacherID", "School_Type", "Level", "KnowledgePercent_ScoreChange", "KnowledgePercent"))
+not_imputed<- full_data %>%
+  dplyr::select(c("Code", "TeacherID", "School_Type", "Level", "KnowledgePercent_ScoreChange", "KnowledgePercent"))
+```
+
+Use the mice package to impute the data
+```{r}
+set.seed(234)
+# step1: replace the missing value with the values of the first imputation to create a complete dataset 
+newdata <- mice(imputed_data, m=5, maxit=10, method="pmm", printFlag = FALSE) # there are more methods of multiple imputation you can try, not only pmm, to see more detail, check: https://www.rdocumentation.org/packages/mice/versions/3.13.0/topics/mice
+
+newdata2 <- complete(newdata, 1, inc = FALSE)
+newdata2 <- cbind(newdata2, not_imputed)
+#should have 2351 logged events (or NAs imputed)
+```
+
+
+```{r}
+#remove unecessary columns in newdata2
+newdata2 %<>%
+  dplyr::select(-c(`X`,`GenScoreV1`, `GenScoreV2`,`school_type`,`school`,`grade_oth`,`kit`,`preweight`,`presmoke`,`preasthma`,`preengage`,`post`,`poststress`,`postjobstress`,`program_pd1`,`program_pd2`,`program_pd3`,`program_pd4`))
+#should now have 77 variables
+```
+
+```{r}
+write.csv(newdata2, "newdata2.csv")
+```
